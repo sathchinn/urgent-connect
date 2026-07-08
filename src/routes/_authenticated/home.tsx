@@ -89,7 +89,7 @@ function BellTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bells")
-        .select("*, groups(name), sender:profiles!bells_sender_id_fkey(display_name, avatar_url)")
+        .select("*, groups(name), sender:profiles!bells_sender_id_profile_fkey(display_name, avatar_url)")
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -202,7 +202,7 @@ function ChatsTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("messages")
-        .select("*, sender:profiles!messages_sender_id_fkey(display_name, avatar_url), recipient:profiles!messages_recipient_id_fkey(display_name, avatar_url)")
+        .select("*, sender:profiles!messages_sender_id_profile_fkey(display_name, avatar_url), recipient:profiles!messages_recipient_id_profile_fkey(display_name, avatar_url)")
         .not("recipient_id", "is", null)
         .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
         .order("created_at", { ascending: false })

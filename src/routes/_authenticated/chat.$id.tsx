@@ -100,8 +100,8 @@ function ChatPage() {
     if (!content || !userId || !target) return;
     setText("");
     const payload = isGroup
-      ? { sender_id: userId, group_id: target, content }
-      : { sender_id: userId, recipient_id: target, content };
+      ? { sender_id: userId, group_id: target, recipient_id: null, content }
+      : { sender_id: userId, group_id: null, recipient_id: target, content };
     const { error } = await supabase.from("messages").insert(payload);
     if (error) { toast.error(error.message); setText(content); }
   };
@@ -109,7 +109,9 @@ function ChatPage() {
   const ring = async () => {
     if (!userId || !target) return;
     playBellSound();
-    const payload = isGroup ? { sender_id: userId, group_id: target } : { sender_id: userId, recipient_id: target };
+    const payload = isGroup
+      ? { sender_id: userId, group_id: target, recipient_id: null }
+      : { sender_id: userId, group_id: null, recipient_id: target };
     const { error } = await supabase.from("bells").insert(payload);
     if (error) toast.error(error.message);
     else toast.success(`🔔 Rang ${header.data?.title}`);
