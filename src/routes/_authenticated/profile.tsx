@@ -24,6 +24,7 @@ function ProfilePage() {
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -31,18 +32,32 @@ function ProfilePage() {
       setName(profile.data.display_name ?? "");
       setStatus(profile.data.status_message ?? "");
       setAvatar(profile.data.avatar_url ?? "");
+      setPhone((profile.data as { phone?: string | null }).phone ?? "");
     }
   }, [profile.data]);
 
   const save = async () => {
     if (!profile.data) return;
+    const cleanPhone = phone.trim().replace(/[\s()-]/g, "");
+    if (cleanPhone && !/^\+?[0-9]{7,15}$/.test(cleanPhone)) {
+      toast.error("Enter a valid phone number (digits, optional leading +)");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: name.trim(), status_message: status.trim() || null, avatar_url: avatar.trim() || null })
+      .update({
+        display_name: name.trim(),
+        status_message: status.trim() || null,
+        avatar_url: avatar.trim() || null,
+        phone: cleanPhone || null,
+      } as never)
       .eq("id", profile.data.id);
     setSaving(false);
-    if (error) toast.error(error.message);
+    if (error) {
+      if (error.code === "23505") toast.error("That phone number is already used by another account");
+      else toast.error(error.message);
+    }
     else { toast.success("Profile saved"); qc.invalidateQueries(); }
   };
 
