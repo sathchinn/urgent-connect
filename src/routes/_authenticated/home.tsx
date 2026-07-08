@@ -283,11 +283,20 @@ function ChatsTab() {
 function ContactsTab() {
   const userId = useCurrentUser();
   const contacts = useProfiles();
+  const qc = useQueryClient();
   const [query, setQuery] = useState("");
+  const [phoneQuery, setPhoneQuery] = useState("");
+  const [lookingUp, setLookingUp] = useState(false);
 
   const filtered = (contacts.data ?? [])
     .filter((c) => c.id !== userId)
-    .filter((c) => c.display_name?.toLowerCase().includes(query.toLowerCase()));
+    .filter((c) => {
+      const q = query.toLowerCase();
+      return (
+        c.display_name?.toLowerCase().includes(q) ||
+        (c as { phone?: string | null }).phone?.toLowerCase().includes(q)
+      );
+    });
 
   const ringUser = async (targetId: string, name: string) => {
     if (!userId) return;
@@ -297,8 +306,49 @@ function ContactsTab() {
     else toast.success(`🔔 Rang ${name}`);
   };
 
+  const addByPhone = async () => {
+    const clean = phoneQuery.trim().replace(/[\s()-]/g, "");
+    if (!clean) return;
+    if (!/^\+?[0-9]{7,15}$/.test(clean)) {
+      toast.error("Enter a valid phone number");
+      return;
+    }
+    setLookingUp(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, phone")
+      .eq("phone", clean)
+      .maybeSingle();
+    setLookingUp(false);
+    if (error) return toast.error(error.message);
+    if (!data) return toast.error("No TickBell user found with that number");
+    if (data.id === userId) return toast.error("That's your own number");
+    toast.success(`Found ${data.display_name} — they're in your contacts`);
+    setPhoneQuery("");
+    qc.invalidateQueries({ queryKey: ["profiles-all"] });
+  };
+
   return (
     <div className="space-y-4 animate-fade-up">
+      <div className="rounded-2xl bg-card shadow-soft p-3 space-y-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add by phone</div>
+        <div className="flex gap-2">
+          <Input
+            value={phoneQuery}
+            onChange={(e) => setPhoneQuery(e.target.value)}
+            placeholder="+1 555 123 4567"
+            inputMode="tel"
+            type="tel"
+            className="h-11 rounded-xl bg-muted border-0"
+            onKeyDown={(e) => { if (e.key === "Enter") addByPhone(); }}
+          />
+          <Button onClick={addByPhone} disabled={lookingUp} className="h-11 rounded-xl gradient-primary text-primary-foreground px-4">
+            {lookingUp ? "…" : <><Plus className="w-4 h-4 mr-1" />Add</>}
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Finds any TickBell user who saved this number on their profile.</p>
+      </div>
+
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search contacts" className="pl-9 h-11 rounded-2xl bg-muted border-0" />
@@ -319,7 +369,9 @@ function ContactsTab() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">{c.display_name}</div>
-              <div className="text-xs text-muted-foreground truncate">{c.status_message ?? "Available"}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {(c as { phone?: string | null }).phone ?? c.status_message ?? "Available"}
+              </div>
             </div>
             <div className="flex items-center gap-1">
               <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 text-accent hover:bg-accent/10" onClick={() => ringUser(c.id, c.display_name)}>

@@ -24,6 +24,7 @@ function ProfilePage() {
   const [name, setName] = useState("");
   const [status, setStatus] = useState("");
   const [avatar, setAvatar] = useState("");
+  const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -31,18 +32,32 @@ function ProfilePage() {
       setName(profile.data.display_name ?? "");
       setStatus(profile.data.status_message ?? "");
       setAvatar(profile.data.avatar_url ?? "");
+      setPhone((profile.data as { phone?: string | null }).phone ?? "");
     }
   }, [profile.data]);
 
   const save = async () => {
     if (!profile.data) return;
+    const cleanPhone = phone.trim().replace(/[\s()-]/g, "");
+    if (cleanPhone && !/^\+?[0-9]{7,15}$/.test(cleanPhone)) {
+      toast.error("Enter a valid phone number (digits, optional leading +)");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: name.trim(), status_message: status.trim() || null, avatar_url: avatar.trim() || null })
+      .update({
+        display_name: name.trim(),
+        status_message: status.trim() || null,
+        avatar_url: avatar.trim() || null,
+        phone: cleanPhone || null,
+      } as never)
       .eq("id", profile.data.id);
     setSaving(false);
-    if (error) toast.error(error.message);
+    if (error) {
+      if (error.code === "23505") toast.error("That phone number is already used by another account");
+      else toast.error(error.message);
+    }
     else { toast.success("Profile saved"); qc.invalidateQueries(); }
   };
 
@@ -83,6 +98,11 @@ function ProfilePage() {
           <div className="space-y-1.5">
             <Label>Status</Label>
             <Textarea value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl min-h-[70px]" placeholder="Available" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Phone number</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 rounded-xl" placeholder="+1 555 123 4567" inputMode="tel" type="tel" />
+            <p className="text-xs text-muted-foreground">Others can add you as a contact using this number.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Avatar URL</Label>
