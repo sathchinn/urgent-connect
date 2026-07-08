@@ -40,7 +40,7 @@ function GroupPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("group_members")
-        .select("id, role, user_id, profiles(display_name, avatar_url, status_message)")
+        .select("id, role, user_id, profiles:profiles!group_members_user_id_profile_fkey(display_name, avatar_url, status_message)")
         .eq("group_id", id);
       if (error) throw error;
       return data ?? [];
