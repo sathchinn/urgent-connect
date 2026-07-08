@@ -100,6 +100,11 @@ function ProfilePage() {
             <Textarea value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl min-h-[70px]" placeholder="Available" />
           </div>
           <div className="space-y-1.5">
+            <Label>Phone number</Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="h-11 rounded-xl" placeholder="+1 555 123 4567" inputMode="tel" type="tel" />
+            <p className="text-xs text-muted-foreground">Others can add you as a contact using this number.</p>
+          </div>
+          <div className="space-y-1.5">
             <Label>Avatar URL</Label>
             <Input value={avatar} onChange={(e) => setAvatar(e.target.value)} className="h-11 rounded-xl" placeholder="https://…" />
           </div>
