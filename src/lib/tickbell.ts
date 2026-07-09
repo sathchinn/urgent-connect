@@ -61,21 +61,62 @@ export function playBellSound() {
   try {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AC();
+    const master = ctx.createGain();
+    master.gain.value = 1.0;
+    master.connect(ctx.destination);
     const now = ctx.currentTime;
-    // Two-tone bell
-    [880, 1320, 880, 1320].forEach((freq, i) => {
+    // Louder, richer two-tone bell (6 pulses)
+    [880, 1320, 880, 1320, 880, 1320].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      const t = now + i * 0.26;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.9, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain).connect(master);
+      osc.start(t);
+      osc.stop(t + 0.28);
+    });
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 400]);
+  } catch { /* ignore */ }
+}
+
+export function playMessageChime() {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AC();
+    const now = ctx.currentTime;
+    [880, 1175].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = freq;
-      const t = now + i * 0.28;
+      const t = now + i * 0.12;
       gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.35, t + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+      gain.gain.linearRampToValueAtTime(0.6, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
       osc.connect(gain).connect(ctx.destination);
       osc.start(t);
-      osc.stop(t + 0.28);
+      osc.stop(t + 0.24);
     });
-    if (navigator.vibrate) navigator.vibrate([200, 80, 200, 80, 300]);
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+  } catch { /* ignore */ }
+}
+
+export function requestNotificationPermission() {
+  try {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission === "default") Notification.requestPermission().catch(() => {});
+  } catch { /* ignore */ }
+}
+
+export function showBrowserNotification(title: string, body: string, tag?: string) {
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (typeof document !== "undefined" && document.visibilityState === "visible") return;
+    const n = new Notification(title, { body, tag, icon: "/favicon.ico" });
+    setTimeout(() => n.close(), 6000);
   } catch { /* ignore */ }
 }
