@@ -314,11 +314,9 @@ function ContactsTab() {
       return;
     }
     setLookingUp(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, display_name, phone")
-      .eq("phone", clean)
-      .maybeSingle();
+    const { data: rows, error } = await supabase
+      .rpc("find_user_by_phone", { _phone: clean });
+    const data = Array.isArray(rows) ? rows[0] ?? null : null;
     setLookingUp(false);
     if (error) return toast.error(error.message);
     if (!data) return toast.error("No TickBell user found with that number");
