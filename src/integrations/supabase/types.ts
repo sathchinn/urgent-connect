@@ -245,12 +245,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_user_by_phone: {
+        Args: { _phone: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          id: string
+        }[]
+      }
+      has_dm_with: {
+        Args: { _other: string; _viewer: string }
+        Returns: boolean
+      }
       is_group_admin: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
       is_group_member: {
         Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
+      shares_group_with: {
+        Args: { _other: string; _viewer: string }
         Returns: boolean
       }
     }
