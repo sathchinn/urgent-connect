@@ -299,6 +299,9 @@ function ContactsTab() {
         q = q.or(`display_name.ilike.${like},email.ilike.${like}`);
       }
       const { data, error } = await q.order("display_name").limit(200);
+      console.log("Current User ID:", userId);
+      console.log("Contacts Data:", data);
+      console.log("Contacts Error:", error);
       if (error) throw error;
       return data ?? [];
     },
