@@ -282,21 +282,29 @@ function ChatsTab() {
 /* ================= Contacts Tab ================= */
 function ContactsTab() {
   const userId = useCurrentUser();
-  const contacts = useProfiles();
   const qc = useQueryClient();
   const [query, setQuery] = useState("");
   const [phoneQuery, setPhoneQuery] = useState("");
+  const [showPhone, setShowPhone] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
 
-  const filtered = (contacts.data ?? [])
-    .filter((c) => c.id !== userId)
-    .filter((c) => {
-      const q = query.toLowerCase();
-      return (
-        c.display_name?.toLowerCase().includes(q) ||
-        (c as { phone?: string | null }).phone?.toLowerCase().includes(q)
-      );
-    });
+  const contacts = useQuery({
+    queryKey: ["contacts", userId, query],
+    enabled: !!userId,
+    queryFn: async () => {
+      let q = supabase.from("profiles").select("*").neq("id", userId!);
+      const term = query.trim();
+      if (term) {
+        const like = `%${term.replace(/[%_]/g, (m) => `\\${m}`)}%`;
+        q = q.or(`display_name.ilike.${like},email.ilike.${like}`);
+      }
+      const { data, error } = await q.order("display_name").limit(200);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const filtered = contacts.data ?? [];
 
   const ringUser = async (targetId: string, name: string) => {
     if (!userId) return;
@@ -314,53 +322,76 @@ function ContactsTab() {
       return;
     }
     setLookingUp(true);
-    const { data: rows, error } = await supabase
-      .rpc("find_user_by_phone", { _phone: clean });
+    const { data: rows, error } = await supabase.rpc("find_user_by_phone", { _phone: clean });
     const data = Array.isArray(rows) ? rows[0] ?? null : null;
     setLookingUp(false);
     if (error) return toast.error(error.message);
     if (!data) return toast.error("No TickBell user found with that number");
     if (data.id === userId) return toast.error("That's your own number");
-    toast.success(`Found ${data.display_name} — they're in your contacts`);
+    toast.success(`Found ${data.display_name}`);
     setPhoneQuery("");
-    qc.invalidateQueries({ queryKey: ["profiles-all"] });
+    qc.invalidateQueries({ queryKey: ["contacts"] });
   };
 
   return (
     <div className="space-y-4 animate-fade-up">
-      <div className="rounded-2xl bg-card shadow-soft p-3 space-y-2">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Add by phone</div>
-        <div className="flex gap-2">
-          <Input
-            value={phoneQuery}
-            onChange={(e) => setPhoneQuery(e.target.value)}
-            placeholder="+1 555 123 4567"
-            inputMode="tel"
-            type="tel"
-            className="h-11 rounded-xl bg-muted border-0"
-            onKeyDown={(e) => { if (e.key === "Enter") addByPhone(); }}
-          />
-          <Button onClick={addByPhone} disabled={lookingUp} className="h-11 rounded-xl gradient-primary text-primary-foreground px-4">
-            {lookingUp ? "…" : <><Plus className="w-4 h-4 mr-1" />Add</>}
-          </Button>
-        </div>
-        <p className="text-[11px] text-muted-foreground">Finds any TickBell user who saved this number on their profile.</p>
-      </div>
-
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search contacts" className="pl-9 h-11 rounded-2xl bg-muted border-0" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name or email"
+          className="pl-9 h-11 rounded-2xl bg-muted border-0"
+        />
       </div>
+
+      <button
+        onClick={() => setShowPhone((v) => !v)}
+        className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition"
+      >
+        {showPhone ? "− Hide phone lookup" : "+ Find by phone number"}
+      </button>
+
+      {showPhone && (
+        <div className="rounded-2xl bg-card shadow-soft p-3 space-y-2">
+          <div className="flex gap-2">
+            <Input
+              value={phoneQuery}
+              onChange={(e) => setPhoneQuery(e.target.value)}
+              placeholder="+1 555 123 4567"
+              inputMode="tel"
+              type="tel"
+              className="h-11 rounded-xl bg-muted border-0"
+              onKeyDown={(e) => { if (e.key === "Enter") addByPhone(); }}
+            />
+            <Button onClick={addByPhone} disabled={lookingUp} className="h-11 rounded-xl gradient-primary text-primary-foreground px-4">
+              {lookingUp ? "…" : <><Plus className="w-4 h-4 mr-1" />Add</>}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Finds any TickBell user who saved this number on their profile.</p>
+        </div>
+      )}
+
       <div className="space-y-1">
-        {filtered.length === 0 && (
+        {contacts.isLoading && (
+          <div className="text-center py-10 text-sm text-muted-foreground">Loading contacts…</div>
+        )}
+        {!contacts.isLoading && filtered.length === 0 && (
           <div className="text-center py-16 rounded-2xl bg-muted/40">
             <Users className="w-10 h-10 mx-auto text-muted-foreground/60" />
-            <p className="mt-3 text-sm text-muted-foreground">No contacts yet.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {query ? "No users match your search." : "No other users yet."}
+            </p>
             <p className="text-xs text-muted-foreground">Invite friends — they'll appear here once they sign up.</p>
           </div>
         )}
         {filtered.map((c) => (
-          <div key={c.id} className="flex items-center gap-3 p-3 rounded-2xl bg-card shadow-soft">
+          <Link
+            key={c.id}
+            to="/chat/$id"
+            params={{ id: `dm:${c.id}` }}
+            className="flex items-center gap-3 p-3 rounded-2xl bg-card shadow-soft hover:bg-muted transition"
+          >
             <Avatar className="h-11 w-11">
               {c.avatar_url && <AvatarImage src={c.avatar_url} />}
               <AvatarFallback className="bg-primary/15 text-primary font-semibold">{initials(c.display_name)}</AvatarFallback>
@@ -368,20 +399,23 @@ function ContactsTab() {
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">{c.display_name}</div>
               <div className="text-xs text-muted-foreground truncate">
-                {(c as { phone?: string | null }).phone ?? c.status_message ?? "Available"}
+                {(c as { email?: string | null }).email ?? (c as { phone?: string | null }).phone ?? c.status_message ?? "Available"}
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 text-accent hover:bg-accent/10" onClick={() => ringUser(c.id, c.display_name)}>
+            <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full h-10 w-10 text-accent hover:bg-accent/10"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); ringUser(c.id, c.display_name); }}
+              >
                 <Bell className="w-5 h-5" />
               </Button>
-              <Link to="/chat/$id" params={{ id: `dm:${c.id}` }}>
-                <Button size="icon" variant="ghost" className="rounded-full h-10 w-10 text-primary hover:bg-primary/10">
-                  <MessageCircle className="w-5 h-5" />
-                </Button>
-              </Link>
+              <div className="rounded-full h-10 w-10 flex items-center justify-center text-primary">
+                <MessageCircle className="w-5 h-5" />
+              </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
