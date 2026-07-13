@@ -154,8 +154,16 @@ function AuthPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" required minLength={6} />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" required minLength={mode === "signup" ? 8 : 6} />
+              {mode === "signup" && (
+                <p className="text-xs text-muted-foreground">At least 8 characters. Avoid common passwords like "password123".</p>
+              )}
             </div>
+            {errorMsg && (
+              <div role="alert" className="text-sm rounded-xl border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2">
+                {errorMsg}
+              </div>
+            )}
             <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-elegant hover:opacity-95">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Create account"}
             </Button>
