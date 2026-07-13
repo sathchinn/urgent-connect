@@ -19,6 +19,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -47,26 +48,49 @@ function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
+        if (password.length < 8) {
+          throw new Error("Password must be at least 8 characters.");
+        }
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { display_name: name || email.split("@")[0] },
+            data: { display_name: name.trim() || email.split("@")[0] },
           },
         });
         if (error) throw error;
+        if (!data.session) {
+          toast.success("Account created — check your email to confirm, then sign in.");
+          setMode("signin");
+          setLoading(false);
+          return;
+        }
         toast.success("Welcome to TickBell!");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (error) throw error;
       }
       navigate({ to: "/home", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const raw = err instanceof Error ? err.message : "Something went wrong";
+      const friendly =
+        /invalid login credentials/i.test(raw)
+          ? "Wrong email or password. If you're new here, tap 'Create an account'."
+          : /user already registered|already been registered/i.test(raw)
+          ? "That email is already registered. Try signing in instead."
+          : /weak|pwned|leaked|compromised/i.test(raw)
+          ? "That password is too common. Please pick a stronger one (mix letters, numbers, symbols)."
+          : raw;
+      setErrorMsg(friendly);
+      toast.error(friendly);
     } finally {
       setLoading(false);
     }
@@ -130,8 +154,16 @@ function AuthPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" required minLength={6} />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="h-11 rounded-xl" required minLength={mode === "signup" ? 8 : 6} />
+              {mode === "signup" && (
+                <p className="text-xs text-muted-foreground">At least 8 characters. Avoid common passwords like "password123".</p>
+              )}
             </div>
+            {errorMsg && (
+              <div role="alert" className="text-sm rounded-xl border border-destructive/40 bg-destructive/10 text-destructive px-3 py-2">
+                {errorMsg}
+              </div>
+            )}
             <Button type="submit" disabled={loading} className="w-full h-11 rounded-xl gradient-primary text-primary-foreground font-semibold shadow-elegant hover:opacity-95">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Create account"}
             </Button>
