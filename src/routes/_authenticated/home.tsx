@@ -44,6 +44,13 @@ function HomePage() {
           <Button variant="ghost" size="icon" onClick={toggle} className="rounded-full">
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
+          {isAdmin.data && (
+            <Link to="/admin/blocks" title="Bell abuse blocks">
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <ShieldAlert className="w-5 h-5 text-accent" />
+              </Button>
+            </Link>
+          )}
           <Link to="/profile">
             <Avatar className="h-9 w-9 ring-2 ring-primary/20 hover:ring-primary/40 transition">
               {profile.data?.avatar_url && <AvatarImage src={profile.data.avatar_url} />}
