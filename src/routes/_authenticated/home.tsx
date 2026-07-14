@@ -104,7 +104,7 @@ function BellTab() {
     }
     setRinging(true);
     playBellSound();
-    const { data, error } = await supabase.rpc("send_bell", { _recipient_id: null, _group_id: activeGroupId });
+    const { data, error } = await supabase.rpc("send_bell", { _recipient_id: null as unknown as string, _group_id: activeGroupId });
     setTimeout(() => setRinging(false), 900);
     if (error) return toast.error(error.message);
     const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean } | null;
