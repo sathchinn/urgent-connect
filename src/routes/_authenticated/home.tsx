@@ -313,8 +313,11 @@ function ContactsTab() {
   const ringUser = async (targetId: string, name: string) => {
     if (!userId) return;
     playBellSound();
-    const { error } = await supabase.from("bells").insert({ sender_id: userId, recipient_id: targetId });
-    if (error) toast.error(error.message);
+    const { data, error } = await supabase.rpc("send_bell", { _recipient_id: targetId, _group_id: null as unknown as string });
+    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean } | null;
+    if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
+    if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${name}`);
   };
 
