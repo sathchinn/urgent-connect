@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser, useMyGroups, useMyProfile, useProfiles, initials, playBellSound } from "@/lib/tickbell";
+import { useCurrentUser, useIsAdmin, useMyGroups, useMyProfile, useProfiles, initials, playBellSound } from "@/lib/tickbell";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
