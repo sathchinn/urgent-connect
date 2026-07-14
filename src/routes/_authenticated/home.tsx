@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Bell, LogOut, MessageCircle, Plus, Search, Users, Moon, Sun, Settings, ChevronRight, User as UserIcon } from "lucide-react";
+import { Bell, LogOut, MessageCircle, Plus, Search, Users, Moon, Sun, Settings, ChevronRight, User as UserIcon, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "@/components/theme-provider";
