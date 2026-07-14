@@ -58,8 +58,8 @@ function HomePage() {
         <Tabs defaultValue="bell" className="w-full">
           <TabsList className="grid grid-cols-3 w-full h-12 p-1 rounded-2xl bg-muted">
             <TabsTrigger value="bell" className="rounded-xl data-[state=active]:shadow-soft"><Bell className="w-4 h-4 mr-1.5" />Bell</TabsTrigger>
-            <TabsTrigger value="chats" className="rounded-xl data-[state=active]:shadow-soft"><MessageCircle className="w-4 h-4 mr-1.5" />Chats</TabsTrigger>
-            <TabsTrigger value="contacts" className="rounded-xl data-[state=active]:shadow-soft"><Users className="w-4 h-4 mr-1.5" />Contacts</TabsTrigger>
+            <TabsTrigger value="chats" className="rounded-xl data-[state=active]:shadow-soft"><Users className="w-4 h-4 mr-1.5" />Groups</TabsTrigger>
+            <TabsTrigger value="contacts" className="rounded-xl data-[state=active]:shadow-soft"><MessageCircle className="w-4 h-4 mr-1.5" />Contacts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bell" className="mt-6"><BellTab /></TabsContent>
