@@ -104,13 +104,14 @@ function BellTab() {
     }
     setRinging(true);
     playBellSound();
-    const { error } = await supabase.from("bells").insert({ sender_id: userId, group_id: activeGroupId });
+    const { data, error } = await supabase.rpc("send_bell", { _recipient_id: null, _group_id: activeGroupId });
     setTimeout(() => setRinging(false), 900);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`🔔 Rang ${activeGroup?.name}`);
-      qc.invalidateQueries({ queryKey: ["bell-history"] });
-    }
+    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean } | null;
+    if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
+    if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
+    else toast.success(`🔔 Rang ${activeGroup?.name}`);
+    qc.invalidateQueries({ queryKey: ["bell-history"] });
   };
 
   return (
