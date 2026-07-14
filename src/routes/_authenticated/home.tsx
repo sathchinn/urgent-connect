@@ -22,6 +22,7 @@ function HomePage() {
   const profile = useMyProfile();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
+  const isAdmin = useIsAdmin();
 
   const logout = async () => {
     await supabase.auth.signOut();
