@@ -343,7 +343,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      bell_response_type: "accept" | "busy" | "dismiss"
+      bell_response_type: "accept" | "busy" | "dismiss" | "reject"
       member_role: "admin" | "member"
     }
     CompositeTypes: {
@@ -473,7 +473,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      bell_response_type: ["accept", "busy", "dismiss"],
+      bell_response_type: ["accept", "busy", "dismiss", "reject"],
       member_role: ["admin", "member"],
     },
   },

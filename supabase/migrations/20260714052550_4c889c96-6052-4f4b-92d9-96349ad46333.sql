@@ -1,0 +1,1 @@
+ALTER TYPE public.bell_response_type ADD VALUE IF NOT EXISTS 'reject';
