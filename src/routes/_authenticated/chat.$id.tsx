@@ -109,11 +109,14 @@ function ChatPage() {
   const ring = async () => {
     if (!userId || !target) return;
     playBellSound();
-    const payload = isGroup
-      ? { sender_id: userId, group_id: target, recipient_id: null }
-      : { sender_id: userId, group_id: null, recipient_id: target };
-    const { error } = await supabase.from("bells").insert(payload);
-    if (error) toast.error(error.message);
+    const args = isGroup
+      ? { _recipient_id: null as unknown as string, _group_id: target }
+      : { _recipient_id: target, _group_id: null as unknown as string };
+    const { data, error } = await supabase.rpc("send_bell", args);
+    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string; warning?: boolean } | null;
+    if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
+    if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${header.data?.title}`);
   };
 
