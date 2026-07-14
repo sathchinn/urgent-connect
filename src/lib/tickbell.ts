@@ -34,6 +34,19 @@ export function useProfiles() {
   });
 }
 
+export function useIsAdmin() {
+  const userId = useCurrentUser();
+  return useQuery({
+    queryKey: ["is-admin", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("has_role", { _user_id: userId!, _role: "admin" });
+      if (error) return false;
+      return !!data;
+    },
+  });
+}
+
 export function useMyGroups() {
   const userId = useCurrentUser();
   return useQuery({

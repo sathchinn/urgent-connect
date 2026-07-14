@@ -6,14 +6,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, MessageCircle, Trash2, UserPlus, UserMinus, Crown } from "lucide-react";
+import { ArrowLeft, MessageCircle, Trash2, UserPlus, UserMinus, Crown, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/group/$id")({
   component: GroupPage,
 });
+
+type Member = {
+  member_row_id: string;
+  user_id: string;
+  role: string;
+  nickname: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  status_message: string | null;
+};
 
 function GroupPage() {
   const { id } = Route.useParams();
@@ -25,6 +35,8 @@ function GroupPage() {
   const [editName, setEditName] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editOpen, setEditOpen] = useState(false);
+  const [nicknameFor, setNicknameFor] = useState<Member | null>(null);
+  const [nicknameValue, setNicknameValue] = useState("");
 
   const group = useQuery({
     queryKey: ["group", id],
@@ -38,18 +50,28 @@ function GroupPage() {
   const members = useQuery({
     queryKey: ["group-members", id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("group_members")
-        .select("id, role, user_id, profiles:profiles!group_members_user_id_profile_fkey(display_name, avatar_url, status_message)")
-        .eq("group_id", id);
+      const { data, error } = await supabase.rpc("get_group_members", { _group_id: id });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as Member[];
     },
   });
+
+  // Realtime: refresh when group_members changes for this group
+  useEffect(() => {
+    const channel = supabase
+      .channel(`group-members-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "group_members", filter: `group_id=eq.${id}` }, () => {
+        qc.invalidateQueries({ queryKey: ["group-members", id] });
+        qc.invalidateQueries({ queryKey: ["my-groups"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, qc]);
 
   const myRow = members.data?.find((m) => m.user_id === userId);
   const isAdmin = myRow?.role === "admin";
   const memberIds = new Set((members.data ?? []).map((m) => m.user_id));
+  const memberCount = members.data?.length ?? 0;
 
   const openEdit = () => {
     setEditName(group.data?.name ?? "");
@@ -75,22 +97,46 @@ function GroupPage() {
     else { toast.success("Removed"); qc.invalidateQueries({ queryKey: ["group-members", id] }); }
   };
 
-  const leaveOrDelete = async () => {
-    if (isAdmin && (members.data?.length ?? 0) <= 1) {
-      // last admin — delete group
-      if (!confirm("Delete this group? This can't be undone.")) return;
-      const { error } = await supabase.from("groups").delete().eq("id", id);
-      if (error) return toast.error(error.message);
-      toast.success("Group deleted");
-    } else {
-      if (!confirm("Leave this group?")) return;
-      const { error } = await supabase.from("group_members").delete().eq("group_id", id).eq("user_id", userId!);
-      if (error) return toast.error(error.message);
-      toast.success("Left group");
+  const openNickname = (m: Member) => {
+    setNicknameFor(m);
+    setNicknameValue(m.nickname ?? "");
+  };
+
+  const saveNickname = async () => {
+    if (!nicknameFor) return;
+    const trimmed = nicknameValue.trim();
+    const { error } = await supabase
+      .from("group_members")
+      .update({ nickname: trimmed || null })
+      .eq("id", nicknameFor.member_row_id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Nickname updated");
+      qc.invalidateQueries({ queryKey: ["group-members", id] });
+      setNicknameFor(null);
     }
+  };
+
+  const leaveGroup = async () => {
+    if (!userId) return;
+    if (!confirm("Leave this group?")) return;
+    const { error } = await supabase.from("group_members").delete().eq("group_id", id).eq("user_id", userId);
+    if (error) return toast.error(error.message);
+    toast.success("Left group");
     qc.invalidateQueries();
     navigate({ to: "/home" });
   };
+
+  const deleteGroup = async () => {
+    if (!confirm("Delete this group? This can't be undone.")) return;
+    const { error } = await supabase.from("groups").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Group deleted");
+    qc.invalidateQueries();
+    navigate({ to: "/home" });
+  };
+
+  const displayFor = (m: Member) => m.nickname?.trim() || m.display_name || "User";
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,7 +157,7 @@ function GroupPage() {
           </div>
           <h1 className="mt-4 text-2xl font-bold">{group.data?.name}</h1>
           {group.data?.description && <p className="text-sm text-muted-foreground mt-1 max-w-md">{group.data.description}</p>}
-          <div className="text-xs text-muted-foreground mt-1">{members.data?.length ?? 0} members</div>
+          <div className="text-xs text-muted-foreground mt-1">{memberCount} {memberCount === 1 ? "member" : "members"}</div>
           <div className="mt-4 flex gap-2">
             <Button size="sm" variant="secondary" className="rounded-full" onClick={() => navigate({ to: "/chat/$id", params: { id: `group:${id}` } })}>
               <MessageCircle className="w-4 h-4 mr-1.5" /> Open chat
@@ -125,7 +171,7 @@ function GroupPage() {
         {/* Members */}
         <section>
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Members</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Members ({memberCount})</h2>
             {isAdmin && (
               <Dialog>
                 <DialogTrigger asChild>
@@ -151,33 +197,52 @@ function GroupPage() {
           </div>
           <div className="space-y-1 rounded-2xl bg-card shadow-soft p-1.5">
             {members.data?.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted transition">
+              <div key={m.member_row_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted transition">
                 <Avatar className="h-10 w-10">
-                  {m.profiles?.avatar_url && <AvatarImage src={m.profiles.avatar_url} />}
-                  <AvatarFallback>{initials(m.profiles?.display_name)}</AvatarFallback>
+                  {m.avatar_url && <AvatarImage src={m.avatar_url} />}
+                  <AvatarFallback>{initials(displayFor(m))}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate flex items-center gap-1">
-                    {m.profiles?.display_name}
+                    {displayFor(m)}
                     {m.role === "admin" && <Crown className="w-3.5 h-3.5 text-accent" />}
                   </div>
-                  <div className="text-xs text-muted-foreground truncate">{m.role === "admin" ? "Admin" : "Member"}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {m.nickname ? `${m.display_name ?? "User"} · ` : ""}{m.role === "admin" ? "Admin" : "Member"}
+                  </div>
                 </div>
+                {isAdmin && (
+                  <Button size="icon" variant="ghost" className="rounded-full" onClick={() => openNickname(m)} title="Set nickname">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
                 {isAdmin && m.user_id !== userId && (
-                  <Button size="icon" variant="ghost" className="rounded-full text-destructive hover:bg-destructive/10" onClick={() => removeMember(m.id)}>
+                  <Button size="icon" variant="ghost" className="rounded-full text-destructive hover:bg-destructive/10" onClick={() => removeMember(m.member_row_id)}>
                     <UserMinus className="w-4 h-4" />
                   </Button>
                 )}
               </div>
             ))}
+            {memberCount === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-6">No members yet.</div>
+            )}
           </div>
         </section>
 
-        <Button variant="outline" className="w-full rounded-2xl text-destructive border-destructive/30 hover:bg-destructive/10" onClick={leaveOrDelete}>
-          <Trash2 className="w-4 h-4 mr-2" /> {isAdmin && (members.data?.length ?? 0) <= 1 ? "Delete group" : "Leave group"}
-        </Button>
+        {/* Actions */}
+        <div className="space-y-2">
+          <Button variant="outline" className="w-full rounded-2xl" onClick={leaveGroup}>
+            Leave group
+          </Button>
+          {isAdmin && (
+            <Button variant="outline" className="w-full rounded-2xl text-destructive border-destructive/30 hover:bg-destructive/10" onClick={deleteGroup}>
+              <Trash2 className="w-4 h-4 mr-2" /> Delete group
+            </Button>
+          )}
+        </div>
       </div>
 
+      {/* Edit group */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="rounded-3xl">
           <DialogHeader><DialogTitle>Edit group</DialogTitle></DialogHeader>
@@ -188,6 +253,33 @@ function GroupPage() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={saveEdit} className="gradient-primary text-primary-foreground">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set nickname */}
+      <Dialog open={!!nicknameFor} onOpenChange={(v) => !v && setNicknameFor(null)}>
+        <DialogContent className="rounded-3xl">
+          <DialogHeader><DialogTitle>Nickname (Preferred Name)</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Set a per-group nickname for <span className="font-semibold">{nicknameFor?.display_name}</span>.
+              This only shows inside this group and doesn't change their profile name.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Nickname</Label>
+              <Input
+                value={nicknameValue}
+                onChange={(e) => setNicknameValue(e.target.value)}
+                placeholder="e.g. Lakshmi – HR"
+                className="h-11 rounded-xl"
+                onKeyDown={(e) => { if (e.key === "Enter") saveNickname(); }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNicknameFor(null)}>Cancel</Button>
+            <Button onClick={saveNickname} className="gradient-primary text-primary-foreground">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

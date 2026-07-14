@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser, useMyGroups, useMyProfile, useProfiles, initials, playBellSound } from "@/lib/tickbell";
+import { useCurrentUser, useIsAdmin, useMyGroups, useMyProfile, useProfiles, initials, playBellSound } from "@/lib/tickbell";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Bell, LogOut, MessageCircle, Plus, Search, Users, Moon, Sun, Settings, ChevronRight, User as UserIcon } from "lucide-react";
+import { Bell, LogOut, MessageCircle, Plus, Search, Users, Moon, Sun, Settings, ChevronRight, User as UserIcon, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "@/components/theme-provider";
@@ -22,6 +22,7 @@ function HomePage() {
   const profile = useMyProfile();
   const navigate = useNavigate();
   const { theme, toggle } = useTheme();
+  const isAdmin = useIsAdmin();
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -43,6 +44,13 @@ function HomePage() {
           <Button variant="ghost" size="icon" onClick={toggle} className="rounded-full">
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </Button>
+          {isAdmin.data && (
+            <Link to="/admin/blocks" title="Bell abuse blocks">
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <ShieldAlert className="w-5 h-5 text-accent" />
+              </Button>
+            </Link>
+          )}
           <Link to="/profile">
             <Avatar className="h-9 w-9 ring-2 ring-primary/20 hover:ring-primary/40 transition">
               {profile.data?.avatar_url && <AvatarImage src={profile.data.avatar_url} />}
@@ -58,8 +66,8 @@ function HomePage() {
         <Tabs defaultValue="bell" className="w-full">
           <TabsList className="grid grid-cols-3 w-full h-12 p-1 rounded-2xl bg-muted">
             <TabsTrigger value="bell" className="rounded-xl data-[state=active]:shadow-soft"><Bell className="w-4 h-4 mr-1.5" />Bell</TabsTrigger>
-            <TabsTrigger value="chats" className="rounded-xl data-[state=active]:shadow-soft"><MessageCircle className="w-4 h-4 mr-1.5" />Chats</TabsTrigger>
-            <TabsTrigger value="contacts" className="rounded-xl data-[state=active]:shadow-soft"><Users className="w-4 h-4 mr-1.5" />Contacts</TabsTrigger>
+            <TabsTrigger value="chats" className="rounded-xl data-[state=active]:shadow-soft"><Users className="w-4 h-4 mr-1.5" />Groups</TabsTrigger>
+            <TabsTrigger value="contacts" className="rounded-xl data-[state=active]:shadow-soft"><MessageCircle className="w-4 h-4 mr-1.5" />Contacts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="bell" className="mt-6"><BellTab /></TabsContent>
@@ -104,13 +112,14 @@ function BellTab() {
     }
     setRinging(true);
     playBellSound();
-    const { error } = await supabase.from("bells").insert({ sender_id: userId, group_id: activeGroupId });
+    const { data, error } = await supabase.rpc("send_bell", { _recipient_id: null as unknown as string, _group_id: activeGroupId });
     setTimeout(() => setRinging(false), 900);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(`🔔 Rang ${activeGroup?.name}`);
-      qc.invalidateQueries({ queryKey: ["bell-history"] });
-    }
+    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean } | null;
+    if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
+    if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
+    else toast.success(`🔔 Rang ${activeGroup?.name}`);
+    qc.invalidateQueries({ queryKey: ["bell-history"] });
   };
 
   return (
@@ -312,8 +321,11 @@ function ContactsTab() {
   const ringUser = async (targetId: string, name: string) => {
     if (!userId) return;
     playBellSound();
-    const { error } = await supabase.from("bells").insert({ sender_id: userId, recipient_id: targetId });
-    if (error) toast.error(error.message);
+    const { data, error } = await supabase.rpc("send_bell", { _recipient_id: targetId, _group_id: null as unknown as string });
+    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean } | null;
+    if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
+    if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${name}`);
   };
 

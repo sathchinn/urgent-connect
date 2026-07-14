@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      bell_blocks: {
+        Row: {
+          blocked_until: string
+          created_at: string
+          id: string
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          blocked_until: string
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id: string
+        }
+        Update: {
+          blocked_until?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bell_responses: {
         Row: {
           bell_id: string
@@ -97,6 +121,7 @@ export type Database = {
           group_id: string
           id: string
           joined_at: string
+          nickname: string | null
           role: Database["public"]["Enums"]["member_role"]
           user_id: string
         }
@@ -104,6 +129,7 @@ export type Database = {
           group_id: string
           id?: string
           joined_at?: string
+          nickname?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           user_id: string
         }
@@ -111,6 +137,7 @@ export type Database = {
           group_id?: string
           id?: string
           joined_at?: string
+          nickname?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           user_id?: string
         }
@@ -240,6 +267,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -253,8 +301,27 @@ export type Database = {
           id: string
         }[]
       }
+      get_group_members: {
+        Args: { _group_id: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          member_row_id: string
+          nickname: string
+          role: string
+          status_message: string
+          user_id: string
+        }[]
+      }
       has_dm_with: {
         Args: { _other: string; _viewer: string }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
         Returns: boolean
       }
       is_group_admin: {
@@ -265,13 +332,18 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      send_bell: {
+        Args: { _group_id: string; _recipient_id: string }
+        Returns: Json
+      }
       shares_group_with: {
         Args: { _other: string; _viewer: string }
         Returns: boolean
       }
     }
     Enums: {
-      bell_response_type: "accept" | "busy" | "dismiss"
+      app_role: "admin" | "moderator" | "user"
+      bell_response_type: "accept" | "busy" | "dismiss" | "reject"
       member_role: "admin" | "member"
     }
     CompositeTypes: {
@@ -400,7 +472,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      bell_response_type: ["accept", "busy", "dismiss"],
+      app_role: ["admin", "moderator", "user"],
+      bell_response_type: ["accept", "busy", "dismiss", "reject"],
       member_role: ["admin", "member"],
     },
   },

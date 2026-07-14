@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { IncomingBellListener } from "@/components/incoming-bell";
 import { MessageNotifier } from "@/components/message-notifier";
+import { BellResponseListener } from "@/components/bell-response-listener";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
       <Outlet />
       <IncomingBellListener />
       <MessageNotifier />
+      <BellResponseListener />
     </>
   ),
 });

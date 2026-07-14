@@ -16,6 +16,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 import { Route as AuthenticatedGroupIdRouteImport } from './routes/_authenticated/group.$id'
 import { Route as AuthenticatedChatIdRouteImport } from './routes/_authenticated/chat.$id'
+import { Route as AuthenticatedAdminBlocksRouteImport } from './routes/_authenticated/admin.blocks'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -51,12 +52,19 @@ const AuthenticatedChatIdRoute = AuthenticatedChatIdRouteImport.update({
   path: '/chat/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminBlocksRoute =
+  AuthenticatedAdminBlocksRouteImport.update({
+    id: '/admin/blocks',
+    path: '/admin/blocks',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/home': typeof AuthenticatedHomeRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/admin/blocks': typeof AuthenticatedAdminBlocksRoute
   '/chat/$id': typeof AuthenticatedChatIdRoute
   '/group/$id': typeof AuthenticatedGroupIdRoute
 }
@@ -65,6 +73,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/home': typeof AuthenticatedHomeRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/admin/blocks': typeof AuthenticatedAdminBlocksRoute
   '/chat/$id': typeof AuthenticatedChatIdRoute
   '/group/$id': typeof AuthenticatedGroupIdRoute
 }
@@ -75,14 +84,29 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/admin/blocks': typeof AuthenticatedAdminBlocksRoute
   '/_authenticated/chat/$id': typeof AuthenticatedChatIdRoute
   '/_authenticated/group/$id': typeof AuthenticatedGroupIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/home' | '/profile' | '/chat/$id' | '/group/$id'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/home'
+    | '/profile'
+    | '/admin/blocks'
+    | '/chat/$id'
+    | '/group/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/home' | '/profile' | '/chat/$id' | '/group/$id'
+  to:
+    | '/'
+    | '/auth'
+    | '/home'
+    | '/profile'
+    | '/admin/blocks'
+    | '/chat/$id'
+    | '/group/$id'
   id:
     | '__root__'
     | '/'
@@ -90,6 +114,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/home'
     | '/_authenticated/profile'
+    | '/_authenticated/admin/blocks'
     | '/_authenticated/chat/$id'
     | '/_authenticated/group/$id'
   fileRoutesById: FileRoutesById
@@ -151,12 +176,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/blocks': {
+      id: '/_authenticated/admin/blocks'
+      path: '/admin/blocks'
+      fullPath: '/admin/blocks'
+      preLoaderRoute: typeof AuthenticatedAdminBlocksRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedAdminBlocksRoute: typeof AuthenticatedAdminBlocksRoute
   AuthenticatedChatIdRoute: typeof AuthenticatedChatIdRoute
   AuthenticatedGroupIdRoute: typeof AuthenticatedGroupIdRoute
 }
@@ -164,6 +197,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedAdminBlocksRoute: AuthenticatedAdminBlocksRoute,
   AuthenticatedChatIdRoute: AuthenticatedChatIdRoute,
   AuthenticatedGroupIdRoute: AuthenticatedGroupIdRoute,
 }
