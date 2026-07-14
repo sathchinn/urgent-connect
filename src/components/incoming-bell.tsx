@@ -56,14 +56,17 @@ export function IncomingBellListener() {
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
-  const respond = async (type: "accept" | "busy" | "dismiss") => {
+  const respond = async (type: "accept" | "reject" | "busy" | "dismiss") => {
     if (!incoming || !userId) return;
     if (type !== "dismiss") {
       const { error } = await supabase
         .from("bell_responses")
         .upsert({ bell_id: incoming.id, user_id: userId, response: type }, { onConflict: "bell_id,user_id" });
       if (error) toast.error(error.message);
-      else toast.success(type === "accept" ? "Marked as accepted" : "Marked as busy");
+      else {
+        const label = type === "accept" ? "Accepted" : type === "reject" ? "Rejected" : "Marked as busy";
+        toast.success(label);
+      }
     }
     setIncoming(null);
   };
