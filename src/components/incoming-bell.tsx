@@ -94,9 +94,12 @@ export function IncomingBellListener() {
             <div className="text-xs text-muted-foreground">{new Date(incoming.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 p-4">
+        <div className="grid grid-cols-2 gap-2 p-4">
           <Button onClick={() => respond("accept")} className="h-12 rounded-2xl bg-success text-success-foreground hover:opacity-90 flex-col gap-0.5">
             <Check className="w-4 h-4" /><span className="text-xs">Accept</span>
+          </Button>
+          <Button onClick={() => respond("reject")} className="h-12 rounded-2xl bg-destructive text-destructive-foreground hover:opacity-90 flex-col gap-0.5">
+            <X className="w-4 h-4" /><span className="text-xs">Reject</span>
           </Button>
           <Button onClick={() => respond("busy")} variant="secondary" className="h-12 rounded-2xl flex-col gap-0.5">
             <CircleSlash className="w-4 h-4" /><span className="text-xs">Busy</span>
