@@ -72,6 +72,8 @@ export async function sendPushForEvent(kind: Kind, id: string, senderUserId: str
     .from("push_subscriptions").select("id, endpoint, p256dh, auth").in("user_id", recipients);
 
   const payload = JSON.stringify({ title, body, url, kind, tag });
+  console.log("Push payload:", payload);
+
   let sent = 0;
   const stale: string[] = [];
   await Promise.all(
