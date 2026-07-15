@@ -2,12 +2,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser, initials, playBellSound } from "@/lib/tickbell";
+import { dispatchPush } from "@/lib/push.functions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Bell, Send, Users } from "lucide-react";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/chat/$id")({
   component: ChatPage,
@@ -102,8 +104,9 @@ function ChatPage() {
     const payload = isGroup
       ? { sender_id: userId, group_id: target, recipient_id: null, content }
       : { sender_id: userId, group_id: null, recipient_id: target, content };
-    const { error } = await supabase.from("messages").insert(payload);
-    if (error) { toast.error(error.message); setText(content); }
+    const { data: inserted, error } = await supabase.from("messages").insert(payload).select("id").single();
+    if (error) { toast.error(error.message); setText(content); return; }
+    if (inserted?.id) dispatchPush({ data: { kind: "message", id: inserted.id } }).catch(() => {});
   };
 
   const ring = async () => {
@@ -114,8 +117,9 @@ function ChatPage() {
       : { _recipient_id: target, _group_id: null as unknown as string };
     const { data, error } = await supabase.rpc("send_bell", args);
     if (error) return toast.error(error.message);
-    const res = data as { ok: boolean; error?: string; warning?: boolean } | null;
+    const res = data as { ok: boolean; error?: string; warning?: boolean; bell_id?: string } | null;
     if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
+    if (res.bell_id) dispatchPush({ data: { kind: "bell", id: res.bell_id } }).catch(() => {});
     if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${header.data?.title}`);
   };
