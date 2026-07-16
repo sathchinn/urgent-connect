@@ -123,11 +123,11 @@ function ChatPage() {
     if (error) return toast.error(error.message);
     const res = data as { ok: boolean; error?: string; warning?: boolean; bell_id?: string } | null;
     if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
-    if (inserted?.id) {
-  dispatchPush({ data: { kind: "message", id: inserted.id } })
-    .then((r) => console.log("Message push success:", r))
-    .catch((e) => console.error("Message push failed:", e));
-}
+    if (res.bell_id) {
+      dispatchPush({ data: { kind: "bell", id: res.bell_id } })
+        .then((r) => console.log("Bell push success:", r))
+        .catch((e) => console.error("Bell push failed:", e));
+    }
     if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${header.data?.title}`);
   };

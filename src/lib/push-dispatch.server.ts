@@ -1,28 +1,28 @@
-import webpush from "web-push";
+import {
+  buildPushPayload,
+  type PushSubscription as WebPushSubscription,
+  type VapidKeys,
+} from "@block65/webcrypto-web-push";
 
 type Kind = "bell" | "message";
 
-let vapidReady = false;
-function initVapid() {
-  if (vapidReady) return;
-  const pub = process.env.VAPID_PUBLIC_KEY;
-  const priv = process.env.VAPID_PRIVATE_KEY;
-  const subj = process.env.VAPID_SUBJECT || "mailto:support@tickbell.app";
-  if (!pub || !priv) throw new Error("VAPID keys not configured");
-  webpush.setVapidDetails(subj, pub, priv);
-  vapidReady = true;
+function getVapid(): VapidKeys {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  const subject = process.env.VAPID_SUBJECT || "mailto:support@tickbell.app";
+  if (!publicKey || !privateKey) throw new Error("VAPID keys not configured");
+  return { subject, publicKey, privateKey };
 }
 
 export async function sendPushForEvent(kind: Kind, id: string, senderUserId: string) {
-  initVapid();
+  const vapid = getVapid();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-  // Determine recipients + notification payload
   let recipients: string[] = [];
   let title = "TickBell";
   let body = "";
   let url = "/home";
-  let tag = `${kind}-${id}`;
+  const tag = `${kind}-${id}`;
 
   const { data: sender } = await supabaseAdmin
     .from("profiles").select("display_name").eq("id", senderUserId).maybeSingle();
@@ -36,6 +36,7 @@ export async function sendPushForEvent(kind: Kind, id: string, senderUserId: str
     if (bell.recipient_id) {
       recipients = [bell.recipient_id];
       url = `/chat/dm:${bell.sender_id}`;
+      title = `🔔 ${senderName} is ringing you`;
     } else if (bell.group_id) {
       const { data: members } = await supabaseAdmin
         .from("group_members").select("user_id").eq("group_id", bell.group_id);
@@ -44,7 +45,6 @@ export async function sendPushForEvent(kind: Kind, id: string, senderUserId: str
       url = `/chat/group:${bell.group_id}`;
       title = `🔔 ${senderName} rang ${g?.name ?? "the group"}`;
     }
-    if (!title.startsWith("🔔")) title = `🔔 ${senderName} is ringing you`;
     body = "Tap to respond: Accept, Reject, or Busy";
   } else {
     const { data: msg } = await supabaseAdmin
@@ -68,35 +68,55 @@ export async function sendPushForEvent(kind: Kind, id: string, senderUserId: str
 
   if (recipients.length === 0) return { ok: true, sent: 0 };
 
-  console.log("Recipients:", recipients);
- 
-
   const { data: subs } = await supabaseAdmin
     .from("push_subscriptions").select("id, endpoint, p256dh, auth").in("user_id", recipients);
-  console.log("Subscriptions found:", subs);
-  const payload = JSON.stringify({ title, body, url, kind, tag });
-  console.log("Push payload:", payload);
+
+  const payloadData = JSON.stringify({ title, body, url, kind, tag });
+  const ttl = kind === "bell" ? 60 : 3600;
+  const urgency: "high" | "normal" = kind === "bell" ? "high" : "normal";
 
   let sent = 0;
   const stale: string[] = [];
+  const errors: Array<{ id: string; status?: number; message?: string }> = [];
+
   await Promise.all(
     (subs ?? []).map(async (s) => {
+      const subscription: WebPushSubscription = {
+        endpoint: s.endpoint,
+        expirationTime: null,
+        keys: { p256dh: s.p256dh, auth: s.auth },
+      };
       try {
-        await webpush.sendNotification(
-          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          payload,
-          { TTL: kind === "bell" ? 60 : 3600, urgency: kind === "bell" ? "high" : "normal" },
+        const payload = await buildPushPayload(
+          { data: payloadData, options: { ttl, urgency, topic: tag.slice(0, 32) } },
+          subscription,
+          vapid,
         );
-        sent++;
-      } catch (err: unknown) {
-        const status = (err as { statusCode?: number })?.statusCode;
-        if (status === 404 || status === 410) stale.push(s.id);
+        const res = await fetch(subscription.endpoint, payload as RequestInit);
+        if (res.status >= 200 && res.status < 300) {
+          sent++;
+        } else if (res.status === 404 || res.status === 410) {
+          stale.push(s.id);
+          errors.push({ id: s.id, status: res.status, message: "subscription gone" });
+        } else {
+          const text = await res.text().catch(() => "");
+          errors.push({ id: s.id, status: res.status, message: text.slice(0, 200) });
+        }
+      } catch (err) {
+        errors.push({ id: s.id, message: err instanceof Error ? err.message : String(err) });
       }
     }),
   );
+
   if (stale.length) {
     await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
   }
-  console.log("Push sent:", sent);
-  return { ok: true, sent };
-}
+
+  if (errors.length) {
+    console.error("[push] delivery errors:", JSON.stringify(errors));
+  }
+  console.log(`[push] kind=${kind} id=${id} recipients=${recipients.length} subs=${subs?.length ?? 0} sent=${sent} stale=${stale.length}`);
+
+  return { ok: true, sent, failed: errors.length, stale: stale.length };
+};
+
