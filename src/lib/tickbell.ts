@@ -125,11 +125,47 @@ export function requestNotificationPermission() {
   } catch { /* ignore */ }
 }
 
-export function showBrowserNotification(title: string, body: string, tag?: string) {
+type BrowserNotificationKind = "bell" | "message" | "bell-response";
+type TickBellNotificationOptions = NotificationOptions & {
+  badge?: string;
+  renotify?: boolean;
+  timestamp?: number;
+  vibrate?: number[];
+};
+
+export function showBrowserNotification(
+  title: string,
+  body: string,
+  tag?: string,
+  kind: BrowserNotificationKind = "message",
+  url = "/home",
+) {
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
-    if (typeof document !== "undefined" && document.visibilityState === "visible") return;
-    const n = new Notification(title, { body, tag, icon: "/favicon.ico" });
-    setTimeout(() => n.close(), 6000);
+
+    const options: TickBellNotificationOptions = {
+      body,
+      tag: tag || kind,
+      renotify: true,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { url, kind },
+      requireInteraction: kind === "bell",
+      vibrate: kind === "bell" ? [300, 100, 300, 100, 400, 100, 300] : [120, 60, 120],
+    };
+
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .then((registration) => registration.showNotification(title, options))
+        .catch(() => {
+          const n = new Notification(title, options);
+          if (kind !== "bell") setTimeout(() => n.close(), 6000);
+        });
+      return;
+    }
+
+    const n = new Notification(title, options);
+    if (kind !== "bell") setTimeout(() => n.close(), 6000);
   } catch { /* ignore */ }
 }

@@ -1,6 +1,6 @@
-/* TickBell push service worker */
-self.addEventListener("install", (e) => { self.skipWaiting(); });
-self.addEventListener("activate", (e) => { e.waitUntil(self.clients.claim()); });
+/* TickBell push service worker: handles background and foreground notification display. */
+self.addEventListener("install", () => { self.skipWaiting(); });
+self.addEventListener("activate", (event) => { event.waitUntil(self.clients.claim()); });
 
 self.addEventListener("push", (event) => {
   let payload = {};
@@ -15,15 +15,17 @@ self.addEventListener("push", (event) => {
     badge = "/icon-192.png",
   } = payload;
 
+  const isBell = kind === "bell";
   const options = {
     body,
-    tag: tag || kind,
+    tag: tag || `${kind}-${Date.now()}`,
     renotify: true,
     icon,
     badge,
-    data: { url, kind },
-    requireInteraction: kind === "bell",
-    vibrate: kind === "bell" ? [300, 100, 300, 100, 400, 100, 300] : [120, 60, 120],
+    timestamp: Date.now(),
+    data: { url, kind, payload },
+    requireInteraction: isBell,
+    vibrate: isBell ? [300, 100, 300, 100, 400, 100, 300] : [120, 60, 120],
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

@@ -5,6 +5,7 @@ import { IncomingBellListener } from "@/components/incoming-bell";
 import { MessageNotifier } from "@/components/message-notifier";
 import { BellResponseListener } from "@/components/bell-response-listener";
 import { registerPushForCurrentUser } from "@/lib/push";
+import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt";
 
 function AuthedShell() {
   useEffect(() => { registerPushForCurrentUser(); }, []);
@@ -14,6 +15,7 @@ function AuthedShell() {
       <IncomingBellListener />
       <MessageNotifier />
       <BellResponseListener />
+      <NotificationPermissionPrompt />
     </>
   );
 }

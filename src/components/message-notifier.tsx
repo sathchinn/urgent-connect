@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser, playMessageChime, showBrowserNotification, requestNotificationPermission } from "@/lib/tickbell";
+import { useCurrentUser, playMessageChime, showBrowserNotification } from "@/lib/tickbell";
 
 type Msg = {
   id: string;
@@ -15,8 +15,6 @@ type Msg = {
 export function MessageNotifier() {
   const userId = useCurrentUser();
   const location = useLocation();
-
-  useEffect(() => { requestNotificationPermission(); }, []);
 
   useEffect(() => {
     if (!userId) return;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser, initials, playBellSound } from "@/lib/tickbell";
+import { useCurrentUser, initials, playBellSound, showBrowserNotification } from "@/lib/tickbell";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell as BellIcon, X, Check, CircleSlash } from "lucide-react";
@@ -43,13 +43,23 @@ export function IncomingBellListener() {
           // Only ring if it targets this user (DM to me, or member of group)
           if (bell.recipient_id && bell.recipient_id !== userId) return;
 
+          const senderName = sender?.display_name ?? "Someone";
+          const groupName = groupRes?.data?.name ?? null;
+
           setIncoming({
             ...bell,
-            senderName: sender?.display_name ?? "Someone",
+            senderName,
             senderAvatar: sender?.avatar_url ?? null,
-            groupName: groupRes?.data?.name ?? null,
+            groupName,
           });
           playBellSound();
+          showBrowserNotification(
+            `🔔 ${senderName} is ringing you`,
+            groupName ? `Rang ${groupName}` : "Tap to respond: Accept, Reject, or Busy",
+            `bell-${bell.id}`,
+            "bell",
+            bell.group_id ? `/chat/group:${bell.group_id}` : `/chat/dm:${bell.sender_id}`,
+          );
         },
       )
       .subscribe();
