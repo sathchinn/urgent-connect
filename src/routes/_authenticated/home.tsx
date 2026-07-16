@@ -118,7 +118,11 @@ function BellTab() {
     if (error) return toast.error(error.message);
     const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean; bell_id?: string } | null;
     if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
-    if (res.bell_id) dispatchPush({ data: { kind: "bell", id: res.bell_id } }).catch(() => {});
+    if (res.bell_id) {
+  dispatchPush({ data: { kind: "bell", id: res.bell_id } })
+    .then((r) => console.log("Bell push success:", r))
+    .catch((e) => console.error("Bell push failed:", e));
+}
     if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${activeGroup?.name}`);
     qc.invalidateQueries({ queryKey: ["bell-history"] });
@@ -327,7 +331,11 @@ function ContactsTab() {
     if (error) return toast.error(error.message);
     const res = data as { ok: boolean; error?: string; warning?: boolean; blocked?: boolean; bell_id?: string } | null;
     if (!res?.ok) return toast.error(res?.error ?? "Could not send bell");
-    if (res.bell_id) dispatchPush({ data: { kind: "bell", id: res.bell_id } }).catch(() => {});
+    if (res.bell_id) {
+  dispatchPush({ data: { kind: "bell", id: res.bell_id } })
+    .then((r) => console.log("Bell push success:", r))
+    .catch((e) => console.error("Bell push failed:", e));
+}
     if (res.warning) toast.warning("One more Bell attempt within the next 2 minutes will temporarily disable Bell access.");
     else toast.success(`🔔 Rang ${name}`);
   };
