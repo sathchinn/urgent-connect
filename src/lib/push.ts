@@ -17,8 +17,9 @@ export async function registerPushForCurrentUser(): Promise<void> {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.register("/sw.js");
     // Ask permission (no-op if already decided)
+    const reg = await navigator.serviceWorker.ready;
     let perm = Notification.permission;
     if (perm === "default") perm = await Notification.requestPermission();
     if (perm !== "granted") return;
