@@ -68,9 +68,12 @@ export async function sendPushForEvent(kind: Kind, id: string, senderUserId: str
 
   if (recipients.length === 0) return { ok: true, sent: 0 };
 
+  console.log("Recipients:", recipients);
+ 
+
   const { data: subs } = await supabaseAdmin
     .from("push_subscriptions").select("id, endpoint, p256dh, auth").in("user_id", recipients);
-
+  console.log("Subscriptions found:", subs);
   const payload = JSON.stringify({ title, body, url, kind, tag });
   console.log("Push payload:", payload);
 
