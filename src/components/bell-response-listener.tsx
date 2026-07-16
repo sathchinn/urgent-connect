@@ -47,7 +47,7 @@ export function BellResponseListener() {
           let msg = "";
           let icon = "";
           if (r.response === "accept") { msg = `${name} accepted your bell.`; icon = "✅"; }
-          else if (r.response === "reject") { msg = `${name} rejected your bell.`; icon = "❌"; }
+          else if (r.response === "rejected") { msg = `${name} rejected your bell.`; icon = "❌"; }
           else if (r.response === "busy") { msg = `${name} is currently busy.`; icon = "⛔"; }
           else return;
 
