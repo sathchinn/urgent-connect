@@ -97,5 +97,6 @@ export async function sendPushForEvent(kind: Kind, id: string, senderUserId: str
   if (stale.length) {
     await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
   }
+  console.log("Push sent:", sent);
   return { ok: true, sent };
 }
